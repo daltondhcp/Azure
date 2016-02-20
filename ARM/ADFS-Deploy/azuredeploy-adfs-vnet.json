@@ -390,7 +390,7 @@
               "subnet": {
                 "id": "[variables('subnetRef')]"
               },
-              "privateIPAddress": "10.0.10.100",
+              "privateIPAddress": "[parameters('intLBIP')]",
               "privateIPAllocationMethod": "Static"
             },
             "name": "LoadBalancerFrontend"
