@@ -87,7 +87,7 @@
     },
     "extLBName": {
       "type": "string",
-      "defaultValue": "externalLoadBalancer"
+      "defaultValue": "externalLoadBalancer",
       "metadata": {
        "description": "External Load balancer name"
       }
