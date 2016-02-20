@@ -80,7 +80,7 @@
     },
     "azureVNetAddressPrefix": {
       "type": "string",
-      "defaultValue": "10.3.0.0/16",
+      "defaultValue": "10.0.0.0/16",
       "metadata": {
         "description": "CIDR block representing the address space of the Azure VNet"
       }
@@ -108,14 +108,14 @@
     },
     "FEsubnetPrefix": {
       "type": "string",
-      "defaultValue": "10.3.1.0/24",
+      "defaultValue": "10.0.1.0/24",
       "metadata": {
         "description": "CIDR block for VM subnet, subset of azureVNetAddressPrefix address space"
       }
     },
     "BESubnetPrefix": {
       "type": "string",
-      "defaultValue": "10.3.1.0/24",
+      "defaultValue": "10.0.2.0/24",
       "metadata": {
         "description": "CIDR block for VM subnet, subset of azureVNetAddressPrefix address space"
       }
