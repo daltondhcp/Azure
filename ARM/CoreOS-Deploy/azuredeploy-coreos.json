@@ -1,0 +1,536 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "storageaccount",
+      "metadata": {
+        "description": "Name of the storage account for VM OS Disks"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1",
+      "allowedValues": [
+        "Standard_A1",
+        "Standard_A2",
+        "Standard_A3",
+        "Standard_A4",
+        "Standard_A5",
+        "Standard_A6",
+        "Standard_A7",
+        "Standard_D1",
+        "Standard_D2",
+        "Standard_D3",
+        "Standard_D4",
+        "Standard_D5"
+      ],
+      "metadata": {
+        "description": "Instance size for the VMs"
+      }
+    },
+
+    "coreVMPrefix": {
+      "type": "string",
+      "defaultValue": "coreos",
+      "metadata": {
+        "description": "Name prefix of the core machines"
+      }
+    },
+    "ubuntuVMPrefix": {
+      "type": "string",
+      "defaultValue": "ubuntuVM",
+      "metadata": {
+        "description": "Name prefix of the ubuntu machine"
+      }
+    },
+    "numberOfCoreNodes": {
+      "type": "int",
+      "defaultValue": 3,
+      "metadata": {
+        "description": "Number of compute nodes to create"
+      }
+    },
+    "adminUserName": {
+      "type": "string",
+      "defaultValue": "core",
+      "metadata": {
+        "description": "Username to login to the VMs"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Virtual Machine."
+      }
+    },
+    "sshKeyData": {
+      "type": "string",
+      "metadata": {
+        "description": "Public key for SSH authentication"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "azureVnet",
+      "metadata": {
+        "description": "Arbitrary name for the Azure Virtual Network"
+      }
+    },
+    "azureVNetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.3.0.0/16",
+      "metadata": {
+        "description": "CIDR block representing the address space of the Azure VNet"
+      }
+    },
+    "extLBName": {
+      "type": "string",
+      "defaultValue": "externalLoadBalancer"
+      "metadata": {
+       "description": "External Load balancer name"
+      }
+    },
+    "BEsubnetName": {
+      "type": "string",
+      "defaultValue": "BackEnd",
+      "metadata": {
+        "description": "Aribtrary name for the Azure Subnet"
+      }
+    },
+    "FESubnetName": {
+      "type": "string",
+      "defaultValue": "FrontEnd",
+      "metadata": {
+        "description": "Aribtrary name for the Azure Subnet"
+      }
+    },
+    "FEsubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.3.1.0/24",
+      "metadata": {
+        "description": "CIDR block for VM subnet, subset of azureVNetAddressPrefix address space"
+      }
+    },
+    "BESubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.3.1.0/24",
+      "metadata": {
+        "description": "CIDR block for VM subnet, subset of azureVNetAddressPrefix address space"
+      }
+    },
+    "publicIpName": {
+      "type": "string",
+      "defaultValue": "publicIP1",
+      "metadata": {
+        "description": "Aribtary name for public IP resource used for the new azure gateway"
+      }
+    },
+    "publicIpName2": {
+      "type": "string",
+      "defaultValue": "publicIP2",
+      "metadata": {
+        "description": "Aribtary name for public IP resource used for the new azure gateway"
+      }
+    },
+    "FENSGName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the FrontEnd Network Security Group"
+      }
+    },
+    "discoveryUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Discovery url for Fleet cluster"
+      }
+    },
+    "ubuntuOSVersion": {
+      "type": "string",
+      "defaultValue": "14.04.3-LTS",
+      "metadata": {
+        "description": "The Ubuntu version"
+      },
+      "allowedValues": [
+        "14.04.3-LTS",
+        "12.04.5-LTS"
+      ]
+    },
+    "DNSServerAddress": {
+      "type": "array",
+      "metadata": {
+        "description": "The DNS address(es) of the DNS Server(s) used by the VNET"
+      }
+    }
+  },
+  "variables": {
+    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "besubnet-id": "[concat(resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName')),'/subnets/',parameters('BEsubnetName'))]",
+    "storageAccountType": "Standard_LRS",
+    "coreimageSku": "Stable",
+    "UbuntuimagePublisher": "Canonical",
+    "UbuntuimageOffer": "UbuntuServer",
+    "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
+    "unitFile": "[concat('#cloud-config\n\ncoreos:\n  etcd:\n    discovery: ', parameters('discoveryUrl'),'\n    addr: $private_ipv4:4001\n    peer-addr: $private_ipv4:7001\n  units:\n    - name: etcd.service\n      command: start\n    - name: fleet.service\n      command: start')]",
+    "api-version": "2015-06-15"
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('api-version')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[parameters('FENSGName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "https_in",
+            "properties": {
+              "description": "Allow HTTPS",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "http_out",
+            "properties": {
+              "description": "Allow HTTP Outbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 101,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "dns_out",
+            "properties": {
+              "description": "Allow dns Outbound",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "53",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 103,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "https_out",
+            "properties": {
+              "description": "Allow HTTPS Outbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 102,
+              "direction": "Outbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "[variables('api-version')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[concat(parameters('ubuntuVMPrefix'),'-nsg')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "ssh_in",
+            "properties": {
+              "description": "Allow SSH",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "[variables('api-version')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[parameters('virtualNetworkName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkSecurityGroups/', parameters('FENsgName'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('azureVNetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[parameters('BEsubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('BEsubnetPrefix')]"
+            }
+          },
+          {
+            "name": "[parameters('FESubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('FESubnetPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('FENSGName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "[variables('api-version')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[parameters('publicIpName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "apiVersion": "[variables('api-version')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[parameters('publicIpName2')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "apiVersion": "[variables('api-version')]",
+      "name": "[parameters('extLBName')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIPName2'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LBFE",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPName2'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "LBBAP"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[parameters('StorageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('api-version')]",
+      "properties": {
+        "accountType": "[variables('storageAccountType')]"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[parameters('coreVMPrefix')]",
+      "apiVersion": "[variables('api-version')]",
+      "location": "[resourceGroup().location]",
+      "properties": { }
+    },
+      {
+        "apiVersion": "[variables('api-version')]",
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[concat(parameters('ubuntuVMPrefix'),'-nic')]",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIPName'))]",
+          "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]"
+        ],
+        "properties": {
+          "networkSecurityGroup": {
+            "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('ubuntuVMPrefix'),'-nsg'))]"
+          },
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPName'))]"
+                },
+                "subnet": {
+                  "id": "[variables('besubnet-id')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "[variables('api-version')]",
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[parameters('ubuntuVMPrefix')]",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+          "[concat('Microsoft.Network/networkInterfaces/',parameters('ubuntuVMPrefix'),'-nic')]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "[parameters('vmSize')]"
+          },
+          "osProfile": {
+            "computerName": "[parameters('ubuntuVMPrefix')]",
+            "adminUsername": "[parameters('adminUserName')]",
+            "adminPassword": "[parameters('adminPassword')]",
+            "linuxConfiguration": {
+              "disablePasswordAuthentication": "false",
+              "ssh": {
+                "publicKeys": [
+                  {
+                    "path": "[variables('sshKeyPath')]",
+                    "keyData": "[parameters('sshKeyData')]"
+                  }
+                ]
+              }
+            }
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "[variables('ubuntuimagePublisher')]",
+              "offer": "[variables('ubuntuimageOffer')]",
+              "sku": "[parameters('ubuntuOSVersion')]",
+              "version": "latest"
+            },
+            "osDisk": {
+              "name": "osdisk1",
+              "vhd": {
+                "uri": "[concat('http://',parameters('storageAccountName'),'.blob.core.windows.net/vhds/',parameters('ubuntuVMPrefix'),'.vhd')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "FromImage"
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('ubuntuVMPrefix'),'-nic'))]"
+              }
+            ]
+          }
+        }
+      },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('coreVMPrefix'),'-nic', copyindex())]",
+      "copy": {
+        "name": "nicLoop",
+        "count": "[parameters('numberOfCoreNodes')]"
+      },
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]"
+      ],
+      "apiVersion": "[variables('api-version')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('besubnet-id')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('coreVMPrefix'), copyindex())]",
+      "copy": {
+        "name": "vmLoop",
+        "count": "[parameters('numberOfCoreNodes')]"
+      },
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', parameters('coreVMPrefix'),'-nic', copyindex())]"
+      ],
+      "apiVersion": "[variables('api-version')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',parameters('coreVMPrefix'))]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('coreVMPrefix'), copyindex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "customData": "[base64(variables('unitFile'))]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": "false",
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[variables('sshKeyPath')]",
+                  "keyData": "[parameters('sshKeyData')]"
+                }
+              ]
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "CoreOS",
+            "offer": "CoreOS",
+            "sku": "[variables('coreimageSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('coreVMPrefix'), copyindex())]",
+            "vhd": {
+              "uri": "[concat('http://',parameters('storageAccountName'),'.blob.core.windows.net/vhds/',parameters('coreVMPrefix'), copyindex(),'.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('coreVMPrefix'),'-nic',copyindex()))]"
+            }
+          ]
+        }
+      }
+    }
+      ]
+    }
+
