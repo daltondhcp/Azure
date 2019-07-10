@@ -1,0 +1,26 @@
+{
+    "apiVersion": "2018-10-01",
+    "type": "Microsoft.Network/bastionHosts",
+    "name": "[parameters('bastionHostName')]",
+    "location": "[parameters('location')]",
+    "dependsOn": [
+        "[resourceId(parameters('resourceGroup'), 'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]",
+        "[resourceId(parameters('resourceGroup'), 'Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+    ],
+    "properties": {
+        "ipConfigurations": [
+            {
+                "name": "IpConf",
+                "properties": {
+                    "subnet": {
+                        "id": "[parameters('subnetId')]"
+                    },
+                    "publicIPAddress": {
+                        "id": "[resourceId(parameters('resourceGroup'), 'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                    }
+                }
+            }
+        ]
+    },
+    "tags": {}
+}
