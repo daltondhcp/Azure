@@ -2,7 +2,7 @@ Configuration DemoConfig {
 Import-DscResource -ModuleName 'PSDscResources'
 
     WindowsFeature WebServer {
-        Ensure  = 'Absent'
+        Ensure  = 'Present'
         Name    = 'Web-Server'
     }
     Script DownloadMsi {
