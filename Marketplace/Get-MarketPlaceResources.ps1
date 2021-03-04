@@ -23,12 +23,13 @@ foreach ($Sub in $Subscriptions) {
                 Write-Output "$($subResources.id -join ',')"
                 Write-Output "$($subResources.resourceGroup -join ',')"
             }
-            $vmResources = ''
+            <# $vmResources = ''
             $vmResources = Search-AzGraph -Query "resources | where subscriptionId == '$($Sub.Id)' and type == 'microsoft.compute/virtualmachines' | extend sku = tostring(properties.storageProfile.imageReference.sku) | extend Publisher = tostring(properties.storageProfile.imageReference.publisher)| extend Offer = tostring(properties.storageProfile.imageReference.offer) | extend offerType = 'VM'| where Offer != ''"
             if ($vmResources ) {
                 Write-Output "$($vmResources.id -join ',')"
                 Write-Output "$($vmResources.resourceGroup -join ',')"
             }
+            #>
             $OfferList += [PSCustomObject]@{
                 SubscriptionName   = $sub.Name
                 Publisher          = $offer.properties.publisher
