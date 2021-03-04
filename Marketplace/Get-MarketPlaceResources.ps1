@@ -36,6 +36,7 @@ foreach ($Sub in $Subscriptions) {
                 Offer              = $offer.properties.offer
                 Sku                = $offer.name
                 State              = $offer.properties.state
+                SignDate           = $offer.properties.SignDate
                 DeployedRG         = $subResources.resourceGroup -join ","
                 DeployedResourceID = $subResources.id -join ","
             }
