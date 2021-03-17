@@ -32,15 +32,28 @@ $OfferList = $subscriptions | ForEach-Object -ThrottleLimit $ThrottleLimit -Para
             #Find resources with offer
             $subResources = ''
             $subResources = Search-AzGraph -Query "resources | where subscriptionId == '$($_.Id)' | extend publisher = tostring(parse_json(plan).publisher)| extend product = tostring(parse_json(plan).product) | where product == '$($Offer.properties.offer)'"
+            try {
+                $offerDetails = Invoke-RestMethod -Method GET -Uri "https://catalogapi.azure.com/offers/$($offer.properties.publisher).$($offer.properties.offer)?api-version=2018-08-01-beta" -ErrorAction Ignore
+            }
+            catch {
+                $offerDetails = "NotFoundInCatalog"
+            }
+
             [PSCustomObject]@{
-                SubscriptionName   = $_.Name
-                Publisher          = $offer.properties.publisher
-                Offer              = $offer.properties.offer
-                Sku                = $offer.name
-                State              = $offer.properties.state
-                SignDate           = $offer.properties.SignDate
-                DeployedRG         = $subResources.resourceGroup -join ","
-                DeployedResourceID = $subResources.id -join ","
+                SubscriptionName     = $_.Name
+                Publisher            = $offer.properties.publisher
+                Offer                = $offer.properties.offer
+                Sku                  = $offer.name
+                State                = $offer.properties.state
+                SignDate             = $offer.properties.SignDate
+                DeployedRG           = $subResources.resourceGroup -join "|"
+                DeployedResourceID   = $subResources.id -join "|"
+                PrivacyPolicyUri     = $offerDetails.PrivacyPolicyUri
+                supportUri           = $offerDetails.supportUri
+                legalTermsUri        = $offerDetails.legalTermsUri
+                PublisherDisplayName = $offerDetails.PublisherDisplayName
+                OfferSummary         = if ($offerDetails.summary) { $offerDetails.summary } else { $offerDetails }
+
             }
         }
     }
