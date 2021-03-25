@@ -1,0 +1,81 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"roleGuid": {
+			"type": "string",
+			"defaultValue": "[guid(tenantResourceId('Microsoft.Management/managementGroups/', parameters('rootMGid')), parameters('roleName'))]"
+		},
+		"rootMGid": {
+			"type": "string",
+			"defaultValue": "ESLZ",
+			"metadata": {
+				"description": "Enterpise Scale Root Management Group"
+			}
+		},
+		"roleName": {
+			"type": "string",
+			"defaultValue": "LZ AppOps Type 1",
+			"metadata": {
+				"description": "Name of Custom Role"
+			}
+		},
+		"roleDescription": {
+			"type": "string",
+			"defaultValue": "Custom LZ AppOps - Delegated role for LZ AppOps - Same as Custom LZ Subscription Owner Type 1, but to be assigned at the RG level",
+			"metadata": {
+				"description": "Description of Custom Role"
+			}
+		}
+	},
+	"resources": [
+		{
+			"name": "[parameters('roleGuid')]",
+			"type": "Microsoft.Authorization/roleDefinitions",
+			"apiVersion": "2018-01-01-preview",
+			"properties": {
+				"roleName": "[parameters('roleName')]",
+				"description": "[parameters('roleDescription')]",
+				"type": "customRole",
+				"permissions": [
+					{
+						"actions": [
+							"*"
+						],
+						"notActions": [
+							"Microsoft.Authorization/*/write",
+							"Microsoft.Authorization/*/delete",
+							"Microsoft.Network/vpnGateways/*",
+							"Microsoft.Network/expressRouteCircuits/*",
+							"Microsoft.Network/routeTables/write",
+							"Microsoft.Network/routeTables/join/*",
+							"Microsoft.Network/routeTables/delete",
+							"Microsoft.Network/routeTables/routes/write",
+							"Microsoft.Network/azurefirewalls/write",
+							"Microsoft.Network/azurefirewalls/delete",
+							"Microsoft.Network/firewallPolicies/write",
+							"Microsoft.Network/firewallPolicies/join/action",
+							"Microsoft.Network/firewallPolicies/delete",
+							"Microsoft.Network/firewallPolicies/ruleGroups/write",
+							"Microsoft.Network/firewallPolicies/ruleGroups/delete",
+							"Microsoft.Network/vpnSites/*",
+							"Microsoft.Network/applicationGateways/*",
+							"Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/*",
+							"Microsoft.Network/networkSecurityGroups/securityRules/write",
+							"Microsoft.Network/networkSecurityGroups/securityRules/delete",
+							"Microsoft.Network/networkSecurityGroups/delete",
+							"Microsoft.Network/networkSecurityGroups/write",
+							"Microsoft.Network/virtualNetworks/*/write",
+							"Microsoft.Network/virtualNetworks/*/delete"
+						],
+						"dataActions": [],
+						"notDataActions": []
+					}
+				],
+				"assignableScopes": [
+					"[concat('/providers/Microsoft.Management/managementGroups/', parameters('rootMGid'))]"
+				]
+			}
+		}
+	]
+}

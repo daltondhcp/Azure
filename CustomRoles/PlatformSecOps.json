@@ -1,0 +1,71 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "roleGuid": {
+      "type": "string",
+      "defaultValue": "[guid(tenantResourceId('Microsoft.Management/managementGroups/', parameters('rootMGid')), parameters('roleName'))]"
+    },
+    "rootMGid": {
+      "type": "string",
+      "defaultValue": "ESLZ",
+      "metadata": {
+        "description": "Enterpise Scale Root Management Group"
+      }
+    },
+    "roleName": {
+      "type": "string",
+      "defaultValue": "SecOps",
+      "metadata": {
+        "description": "Name of Custom Role"
+      }
+    },
+    "roleDescription": {
+      "type": "string",
+      "defaultValue": "Custom Security Administrator Role with a horizontal view across the entire Azure estate and the Azure Key Vault purge policy",
+      "metadata": {
+        "description": "Description of Custom Role"
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('roleGuid')]",
+      "type": "Microsoft.Authorization/roleDefinitions",
+      "apiVersion": "2018-01-01-preview",
+      "properties": {
+        "roleName": "[parameters('roleName')]",
+        "description": "[parameters('roleDescription')]",
+        "type": "customRole",
+        "permissions": [
+          {
+            "actions": [
+              "*/read",
+              "*/register/action",
+              "Microsoft.KeyVault/locations/deletedVaults/purge/action",
+              "Microsoft.PolicyInsights/*",
+              "Microsoft.Authorization/*/read",
+              "Microsoft.Authorization/policyAssignments/*",
+              "Microsoft.Authorization/policyDefinitions/*",
+              "Microsoft.Authorization/policyExemptions/*",
+              "Microsoft.Authorization/policySetDefinitions/*",
+              "Microsoft.Insights/alertRules/*",
+              "Microsoft.Management/managementGroups/read",
+              "Microsoft.operationalInsights/workspaces/*/read",
+              "Microsoft.Resources/deployments/*",
+              "Microsoft.Resources/subscriptions/resourceGroups/read",
+              "Microsoft.Security/*",
+              "Microsoft.Support/*"
+            ],
+            "notActions": [],
+            "dataActions": [],
+            "notDataActions": []
+          }
+        ],
+        "assignableScopes": [
+          "[concat('/providers/Microsoft.Management/managementGroups/', parameters('rootMGid'))]"
+        ]
+      }
+    }
+  ]
+}

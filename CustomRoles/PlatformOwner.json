@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "roleGuid": {
+      "type": "string",
+      "defaultValue": "[guid(tenantResourceId('Microsoft.Management/managementGroups/', parameters('rootMGid')), parameters('roleName'))]"
+    },
+    "rootMGid": {
+      "type": "string",
+      "defaultValue": "ESLZ",
+      "metadata": {
+        "description": "Enterpise Scale Root Management Group"
+      }
+    },
+    "roleName": {
+      "type": "string",
+      "defaultValue": "Platform Owners",
+      "metadata": {
+        "description": "Name of Custom Role"
+      }
+    },
+    "roleDescription": {
+      "type": "string",
+      "defaultValue": "Custom Role that grants full access to manage all Platform resources, including the ability to assign roles in Azure RBAC",
+      "metadata": {
+        "description": "Description of Custom Role"
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('roleGuid')]",
+      "type": "Microsoft.Authorization/roleDefinitions",
+      "apiVersion": "2018-01-01-preview",
+      "properties": {
+        "roleName": "[parameters('roleName')]",
+        "description": "[parameters('roleDescription')]",
+        "type": "customRole",
+        "permissions": [
+          {
+            "actions": [
+              "*"
+            ],
+            "notActions": [],
+            "dataActions": [],
+            "notDataActions": []
+          }
+        ],
+        "assignableScopes": [
+          "[concat('/providers/Microsoft.Management/managementGroups/', parameters('rootMGid'))]"
+        ]
+      }
+    }
+  ]
+}
