@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "mspOfferName": {
+            "value": "Contoso Managed Services"
+        },
+        "mspOfferDescription": {
+            "value": "Contoso Managed Services"
+        },
+        "managedByTenantId": {
+            "value": "3114ebe8-8d3f-4bac-b3ce-59b4210a1287"
+        },
+        "authorizations": {
+            "value": [
+                {
+                    "principalId": "f0d29e7d-6a7d-4bac-b7ff-a56f4ac9fa47",
+                    "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+                    "principalIdDisplayName": "MSP Admins"
+                }
+            ]
+        }
+    }
+}
