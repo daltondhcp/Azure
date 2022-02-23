@@ -37,7 +37,7 @@ $tenantSettingstoChange = @($PPEndCreationSetting, $PPAppSharingSetting, $PPTria
 $tenantSettings = $existingTenantSettings
 #TODO - update tenant settings based on settings to change
 
-Invoke-PowerOpsRequest -Path /providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings -Method Post -RequestBody $tenantSettings
+Invoke-PowerOpsRequest -Path /providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings -Method Post -RequestBody ($tenantSettings | ConvertTo-Json -Depth 100)
 
 #endregion set tenant settings
 
