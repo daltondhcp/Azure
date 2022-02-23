@@ -1,0 +1,37 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "mspOfferName": {
+            "value": "Contoso PIM Managed Services"
+        },
+        "mspOfferDescription": {
+            "value": "Contoso PIM Managed Services"
+        },
+        "managedByTenantId": {
+            "value": "3114ebe8-8d3f-4bac-b3ce-59b4210a1287"
+        },
+        "authorizations": {
+            "value": [
+                {
+                    "principalId": "f0d29e7d-6a7d-4bac-b7ff-a56f4ac9fa47",
+                    "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+                    "principalIdDisplayName": "MSP Admins"
+                }
+            ]
+        },
+        "eligibleAuthorizations": {
+            "value": [
+                {
+                    "justInTimeAccessPolicy": {
+                        "multiFactorAuthProvider": "Azure",
+                        "maximumActivationDuration": "PT8H"
+                    },
+                    "principalId": "a74cd608-0157-4848-8967-7e6055992aa2",
+                    "principalIdDisplayName": "MSP PIM Admins",
+                    "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c"
+                }
+            ]
+        }
+    }
+}
