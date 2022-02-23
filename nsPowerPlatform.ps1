@@ -35,6 +35,7 @@ $existingTenantSettings = Get-PowerOpsTenantSettings
 $tenantSettingstoChange = @($PPEndCreationSetting, $PPAppSharingSetting, $PPTrialEnvCreationSetting, $PPGuestMakerSetting)
 
 $tenantSettings = $existingTenantSettings
+$tenantSettings.disableTrialEnvironmentCreationByNonAdminUsers = $PPTrialEnvCreationSetting -eq 'No'
 #TODO - update tenant settings based on settings to change
 
 Invoke-PowerOpsRequest -Path /providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings -Method Post -RequestBody ($tenantSettings | ConvertTo-Json -Depth 100)
