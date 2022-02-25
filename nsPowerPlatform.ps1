@@ -80,14 +80,18 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
 if ($PPDefaultDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
     $defaultDLPTemplate = 'DefaultDLP.json'
-    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplate  -Force
+    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplate  -Force
     New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplate -Name Default
 }
-#TODO - upload policies
 #endregion create default dlp policies
 
 #region create admin environments and import COE solution
+if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
+    # Create environment
+    New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion
 
+
+}
 #endregion create admin environments and import COE solution
 
 #region create landing zones
