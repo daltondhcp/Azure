@@ -41,7 +41,7 @@ $PSBoundParameters
 Install-Module -Name PowerOps -AllowPrerelease -Force
 
 #Template references
-$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/Azure/AzOps/main/src/data/template/template.json'
+$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/daltondhcp/Azure/nsppscript/defaultDLP.json'
 
 #region set tenant settings
 # Get existing tenant settings
