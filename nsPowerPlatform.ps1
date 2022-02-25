@@ -10,7 +10,7 @@ param (
     [Parameter(Mandatory = $false)][string]$PPEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
-    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminEnvNaming,
+    [Parameter(Mandatory = $false)][string]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
     [Parameter(Mandatory = $false)][string]$PPAdminBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminCoeSetting,
@@ -35,7 +35,7 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryBilling
 )
 
-$PSBoundParameters
+$DeploymentScriptOutputs = @{}
 
 #Install required modules
 Install-Module -Name PowerOps -AllowPrerelease -Force
