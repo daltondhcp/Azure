@@ -10,29 +10,29 @@ param (
     [Parameter(Mandatory = $false)][string]$PPEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
-    [Parameter(Mandatory = $false)]$PPAdminEnvNaming,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
-    [Parameter(Mandatory = $false)]$PPAdminBilling,
-    [Parameter(Mandatory = $false)]$PPAdminCoeSetting,
-    #Landing Zones
-    [Parameter(Mandatory = $false)]$PPDefaultRenameText,
-    [Parameter(Mandatory = $false)]$PPDefaultDLP,
-    [Parameter(Mandatory = $false)]$PPCitizen,
-    [Parameter(Mandatory = $false)]$PPCitizenCount,
-    [Parameter(Mandatory = $false)]$PPCitizenNaming,
-    [Parameter(Mandatory = $false)]$PPCitizenRegion,
-    [Parameter(Mandatory = $false)]$PPCitizenDlp,
-    [Parameter(Mandatory = $false)]$PPCitizenBilling,
-    [Parameter(Mandatory = $false)]$PPPro,
-    [Parameter(Mandatory = $false)]$PPProCount,
-    [Parameter(Mandatory = $false)]$PPProNaming,
-    [Parameter(Mandatory = $false)]$PPProRegion,
-    [Parameter(Mandatory = $false)]$PPProDlp,
-    [Parameter(Mandatory = $false)]$PPProBilling,
-    [Parameter(Mandatory = $false)]$PPSelectIndustry,
-    [Parameter(Mandatory = $false)]$PPIndustryNaming,
-    [Parameter(Mandatory = $false)]$PPIndustryRegion,
-    [Parameter(Mandatory = $false)]$PPIndustryBilling
+    [Parameter(Mandatory = $false)][string]$PPAdminBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPAdminCoeSetting,
+    #Landing Zones[string][AllowEmptyString()]
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPDefaultRenameText,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPDefaultDLP,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizen,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizenCount,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizenNaming,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizenRegion,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizenDlp,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPCitizenBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPPro,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPProCount,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPProNaming,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPProRegion,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPProDlp,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPProBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPSelectIndustry,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPIndustryNaming,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPIndustryRegion,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()]$PPIndustryBilling
 )
 
 $PSBoundParameters
@@ -41,7 +41,7 @@ $PSBoundParameters
 Install-Module -Name PowerOps -AllowPrerelease -Force
 
 #Template references
-$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/daltondhcp/Azure/nsppscript/defaultDLP.json'
+$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/Azure/AzOps/main/src/data/template/template.json'
 
 #region set tenant settings
 # Get existing tenant settings
