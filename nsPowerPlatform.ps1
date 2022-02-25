@@ -10,7 +10,7 @@ param (
     [Parameter(Mandatory = $false)][string]$PPEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
-    [Parameter(Mandatory = $false)][string]$PPAdminEnvNaming,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
     [Parameter(Mandatory = $false)][string]$PPAdminBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminCoeSetting,
@@ -41,7 +41,7 @@ $DeploymentScriptOutputs = @{}
 Install-Module -Name PowerOps -AllowPrerelease -Force
 
 #Template references
-$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/Azure/AzOps/main/src/data/template/template.json'
+$defaultDLPTemplateUri = 'https://raw.githubusercontent.com/daltondhcp/Azure/nsppscript/defaultDLP.json'
 
 #region set tenant settings
 # Get existing tenant settings
