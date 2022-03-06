@@ -67,21 +67,24 @@ Invoke-PowerOpsRequest @tenantRequest
 #region rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
     $defaultEnvironment = Invoke-PowerOpsRequest -Method Get -Path '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments' | Where-Object { $_.Properties.environmentSku -eq "Default" }
-    $defaultEnvironment.properties.displayName = $PPDefaultRenameText
-    $defaultEnvRequest = @{
-        Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments/{0}' -f $defaultEnvironment.name
-        Method      = 'Patch'
-        RequestBody = ($defaultEnvironment | ConvertTo-Json -Depth 100)
+
+    if ($PPDefaultRenameText -ne $defaultEnvironment.properties.displayName) {
+        $defaultEnvironment.properties.displayName = $PPDefaultRenameText
+        $defaultEnvRequest = @{
+            Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments/{0}' -f $defaultEnvironment.name
+            Method      = 'Patch'
+            RequestBody = ($defaultEnvironment | ConvertTo-Json -Depth 100)
+        }
+        Invoke-PowerOpsRequest @defaultEnvRequest
     }
-    Invoke-PowerOpsRequest @defaultEnvRequest
 }
 #endregion rename default environment
 #region create default dlp policies
 if ($PPDefaultDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
-    $defaultDLPTemplate = 'DefaultDLP.json'
+    $defaultDLPTemplateFile = 'DefaultDLP.json'
     $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplate  -Force
-    New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplate -Name Default
+    New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplateFile -Name Default
 }
 #endregion create default dlp policies
 
