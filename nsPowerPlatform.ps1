@@ -43,6 +43,8 @@ Install-Module -Name PowerOps -AllowPrerelease -Force
 #Template references
 $defaultDLPTemplateUri = 'https://raw.githubusercontent.com/daltondhcp/Azure/nsppscript/defaultDLP.json'
 
+#Default environment tiers
+$envTiers = 'dev','test','prod'
 #region set tenant settings
 # Get existing tenant settings
 $existingTenantSettings = Get-PowerOpsTenantSettings
@@ -98,7 +100,7 @@ if ($PPDefaultDLP -eq 'Yes') {
         $null = New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplateFile -Name Default
         Write-Host "Created Default DLP Policy"
     } catch {
-        throw "Failed to create Default DLP Policy"
+        Write-Warning "Failed to create Default DLP Policy"
     }
 }
 #endregion create default dlp policies
@@ -106,11 +108,14 @@ if ($PPDefaultDLP -eq 'Yes') {
 #region create admin environments and import COE solution
 if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
     # Create environment
-    try {
-        $null = New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion -Dataverse $true
-        Write-Host "Created environment $PPAdminEnvNaming in $PPAdminRegion"
-    } catch {
-        throw "Failed to create admin environment $PPAdminEnvNaming"
+    foreach ($envTier in $envTiers) {
+        try {
+            $adminEnvName = '{0}-{1}' -f $PPAdminEnvNaming,$envTier
+            $null = New-PowerOpsEnvironment -Name $adminEnvName -Location $PPAdminRegion -Dataverse $true
+            Write-Host "Created environment $adminEnvName in $PPAdminRegion"
+        } catch {
+            throw "Failed to create admin environment $adminEnvName"
+        }
     }
 }
 #endregion create admin environments and import COE solution
