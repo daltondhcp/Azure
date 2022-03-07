@@ -74,7 +74,8 @@ try {
 #region rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
     $defaultEnvironment = Invoke-PowerOpsRequest -Method Get -Path '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments' | Where-Object { $_.Properties.environmentSku -eq "Default" }
-    if ($PPDefaultRenameText -ne $defaultEnvironment.properties.displayName) {
+    $oldDefaultName = $defaultEnvironment.properties.displayName
+    if ($PPDefaultRenameText -ne $oldDefaultName) {
         $defaultEnvironment.properties.displayName = $PPDefaultRenameText
         $defaultEnvRequest = @{
             Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments/{0}' -f $defaultEnvironment.name
@@ -83,7 +84,7 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
         }
         try {
             Invoke-PowerOpsRequest @defaultEnvRequest
-            Write-Host "Renamed default environment from $($defaultEnvironment.properties.displayName) to $PPDefaultRenameText"
+            Write-Host "Renamed default environment from $oldDefaultName to $PPDefaultRenameText"
         } catch {
             throw "Failed to rename Default DLP Policy"
         }
