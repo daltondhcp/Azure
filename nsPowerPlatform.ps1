@@ -91,12 +91,31 @@ if ($PPDefaultDLP -eq 'Yes') {
 #region create admin environments and import COE solution
 if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
     # Create environment
-    New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion
-
-
+    try {
+        New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion -Dataverse $true
+    } catch {
+        throw "Failed to create admin environment $PPAdminEnvNaming"
+    }
 }
 #endregion create admin environments and import COE solution
 
-#region create landing zones
+#region create landing zones for citizen devs
+if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
+    $PPCitizenDataverse = $PPCitizen -eq "yes"
+    1..$PPCitizenCount | ForEach-Object -Process {
+        $environmentName = "{0}-{1:d2}" -f $PPCitizenNaming,$_
+        New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+    }
+}
+#endregion create landing zones for citizen devs
 
-#endregion create landing zones
+#region create landing zones for pro devs
+if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
+    $PProDataverse = $PPPro -eq "yes"
+    1..$PPProCount | ForEach-Object -Process {
+        $environmentName = "{0}-{1:d2}" -f $PPProNaming,$_
+        New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PProDataverse
+    }
+}
+
+#endregion create landing zones for pro devs
