@@ -114,7 +114,7 @@ if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
     $PPProDataverse = $PPPro -eq "yes"
     1..$PPProCount | ForEach-Object -Process {
         $environmentName = "{0}-{1:d2}" -f $PPProNaming,$_
-        New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PProDataverse
+        New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
     }
 }
 
