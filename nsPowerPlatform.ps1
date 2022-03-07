@@ -55,19 +55,23 @@ $tenantSettings.disableEnvironmentCreationByNonAdminUsers = $PPEnvCreationSettin
 $tenantSettings.disableCapacityAllocationByEnvironmentAdmins = $PPEnvCapacitySetting -eq 'Yes'
 
 # Update tenant settings
-$tenantRequest = @{
-    Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
-    Method      = 'Post'
-    RequestBody = ($tenantSettings | ConvertTo-Json -Depth 100)
+try {
+    $tenantRequest = @{
+        Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
+        Method      = 'Post'
+        RequestBody = ($tenantSettings | ConvertTo-Json -Depth 100)
+    }
+    $null = Invoke-PowerOpsRequest @tenantRequest
+    Write-Host "Updated tenant settings"
+} catch {
+    throw "Failed to set tenant settings"
 }
-Invoke-PowerOpsRequest @tenantRequest
 
 #endregion set tenant settings
 
 #region rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
     $defaultEnvironment = Invoke-PowerOpsRequest -Method Get -Path '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments' | Where-Object { $_.Properties.environmentSku -eq "Default" }
-
     if ($PPDefaultRenameText -ne $defaultEnvironment.properties.displayName) {
         $defaultEnvironment.properties.displayName = $PPDefaultRenameText
         $defaultEnvRequest = @{
@@ -75,16 +79,27 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
             Method      = 'Patch'
             RequestBody = ($defaultEnvironment | ConvertTo-Json -Depth 100)
         }
-        Invoke-PowerOpsRequest @defaultEnvRequest
+        try {
+            Invoke-PowerOpsRequest @defaultEnvRequest
+            Write-Host "Renamed default environment from $($defaultEnvironment.properties.displayName) to $PPDefaultRenameText"
+        } catch {
+            throw "Failed to rename Default DLP Policy"
+        }
     }
 }
 #endregion rename default environment
+
 #region create default dlp policies
 if ($PPDefaultDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
     $defaultDLPTemplateFile = 'DefaultDLP.json'
-    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplateFile -Force
-    New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplateFile -Name Default
+    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplate  -Force
+    try {
+        $null = New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplateFile -Name Default
+        Write-Host "Created Default DLP Policy"
+    } catch {
+        throw "Failed to create Default DLP Policy"
+    }
 }
 #endregion create default dlp policies
 
@@ -92,7 +107,8 @@ if ($PPDefaultDLP -eq 'Yes') {
 if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
     # Create environment
     try {
-        New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion -Dataverse $true
+        $null = New-PowerOpsEnvironment -Name $PPAdminEnvNaming -Location $PPAdminRegion -Dataverse $true
+        Write-Host "Created environment $PPAdminEnvNaming in $PPAdminRegion"
     } catch {
         throw "Failed to create admin environment $PPAdminEnvNaming"
     }
@@ -100,22 +116,31 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 #endregion create admin environments and import COE solution
 
 #region create landing zones for citizen devs
-if ($PPCitizenCount -ge 1) {
+if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
     $PPCitizenDataverse = $PPCitizen -eq "yes"
     1..$PPCitizenCount | ForEach-Object -Process {
         $environmentName = "{0}-{1:d2}" -f $PPCitizenNaming,$_
-        New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+        try {
+            $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+            Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
+        } catch {
+            throw "Failed to deploy citizen environment $environmentName"
+        }
     }
 }
 #endregion create landing zones for citizen devs
 
 #region create landing zones for pro devs
-if ($PPProCount -ge 1) {
+if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
     $PPProDataverse = $PPPro -eq "yes"
     1..$PPProCount | ForEach-Object -Process {
         $environmentName = "{0}-{1:d2}" -f $PPProNaming,$_
-        New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
+        try {
+            $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
+            Write-Host "Created pro environment $environmentName in $PPProRegion"
+        } catch {
+            throw "Failed to deploy pro environment $environmentName"
+        }
     }
 }
-
 #endregion create landing zones for pro devs
