@@ -10,6 +10,8 @@ param (
     [Parameter(Mandatory = $false)][string]$PPEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
+    [Parameter(Mandatory = $false)][string]$PPTenantIsolationSetting = 'none',
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTenantIsolationDomains,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
     [Parameter(Mandatory = $false)][string]$PPAdminBilling,
@@ -69,6 +71,21 @@ try {
     throw "Failed to set tenant settings"
 }
 
+#Tenant Isolation settings
+if ($PPTenantIsolationSetting) {
+    $tenantIsolationSettings = @{
+        Enabled = $true
+    }
+    if ($PPTenantIsolationDomains) {
+        $tenantIsolationSettings.TenantId = $PPTenantIsolationDomains
+        if ($PPTenantIsolationSetting -eq 'both') {
+            $tenantIsolationSettings.AllowedDirection = 'InboundAndOutbound'
+        } else {
+            $tenantIsolationSettings.AllowedDirection = $PPTenantIsolationSetting
+        }
+    }
+    Set-PowerOpsTenantIsolation @tenantIsolationSettings
+}
 #endregion set tenant settings
 
 #region rename default environment
