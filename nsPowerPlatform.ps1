@@ -83,7 +83,7 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
 if ($PPDefaultDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
     $defaultDLPTemplateFile = 'DefaultDLP.json'
-    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplate  -Force
+    $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplateFile -Force
     New-PowerOpsDLPPolicy -TemplateFile $defaultDLPTemplateFile -Name Default
 }
 #endregion create default dlp policies
