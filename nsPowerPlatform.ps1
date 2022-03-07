@@ -100,7 +100,7 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 #endregion create admin environments and import COE solution
 
 #region create landing zones for citizen devs
-if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
+if ($PPCitizenCount -ge 1) {
     $PPCitizenDataverse = $PPCitizen -eq "yes"
     1..$PPCitizenCount | ForEach-Object -Process {
         $environmentName = "{0}-{1:d2}" -f $PPCitizenNaming,$_
@@ -110,7 +110,7 @@ if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
 #endregion create landing zones for citizen devs
 
 #region create landing zones for pro devs
-if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
+if ($PPProCount -ge 1) {
     $PPProDataverse = $PPPro -eq "yes"
     1..$PPProCount | ForEach-Object -Process {
         $environmentName = "{0}-{1:d2}" -f $PPProNaming,$_
