@@ -1,9 +1,6 @@
 [CmdletBinding()]
 param (
     #Security, govarnance and compliance
-    [Parameter(Mandatory = $false)][string[]]$PPBusinessDLP,
-    [Parameter(Mandatory = $false)][string[]]$PPNonBusinessDLP,
-    [Parameter(Mandatory = $false)][string[]]$PPBlockDLP,
     [Parameter(Mandatory = $false)][string]$PPGuestMakerSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPAppSharingSetting = 'Yes',
     #Admin environment and settings
@@ -11,6 +8,7 @@ param (
     [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
     [Parameter(Mandatory = $false)][string]$PPTenantIsolationSetting = 'none',
+    [Parameter(Mandatory = $false)][string]$PPTenantDLP = 'Yes',
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTenantIsolationDomains,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
@@ -113,7 +111,7 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
 #endregion rename default environment
 
 #region create default dlp policies
-if ($PPDefaultDLP -eq 'Yes') {
+if ($PPTenantDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
     $defaultDLPTemplateFile = 'DefaultDLP.json'
     $defaultDLPTemplate = (Invoke-WebRequest -Uri $defaultDLPTemplateUri).Content | Set-Content -Path $defaultDLPTemplateFile -Force
