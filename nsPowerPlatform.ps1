@@ -149,9 +149,9 @@ if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
         try {
             if ($PPCitizenAlm -eq 'Yes') {
                 foreach ($envTier in $envTiers) {
-                    $environmentName = "{0}-{1}" -f $environmentName,$envTier
-                    $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
-                    Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
+                    $almEnvironmentName = "{0}-{1}" -f $environmentName,$envTier
+                    $null = New-PowerOpsEnvironment -Name $almEnvironmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+                    Write-Host "Created citizen environment $almEnvironmentName in $PPCitizenRegion"
                 }
             } else {
                 $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
@@ -172,9 +172,9 @@ if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
         try {
             if ($PPProAlm -eq 'Yes') {
                 foreach ($envTier in $envTiers) {
-                    $environmentName = "{0}-{1}" -f $environmentName,$envTier
-                    $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
-                    Write-Host "Created pro environment $environmentName in $PPProRegion"
+                    $almEnvironmentName = "{0}-{1}" -f $environmentName,$envTier
+                    $null = New-PowerOpsEnvironment -Name $almEnvironmentName -Location $PPProRegion -Dataverse $PPProDataverse
+                    Write-Host "Created pro environment $almEnvironmentName in $PPProRegion"
                 }
             } else {
                 $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
