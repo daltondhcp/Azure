@@ -25,16 +25,19 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenRegion,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenAlm,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPPro,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProCount,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProNaming,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProRegion,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProAlm,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPSelectIndustry,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryNaming,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryRegion,
-    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryBilling
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryBilling,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryAlm
 )
 
 $DeploymentScriptOutputs = @{}
@@ -142,10 +145,18 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
     $PPCitizenDataverse = $PPCitizen -eq "yes"
     1..$PPCitizenCount | ForEach-Object -Process {
-        $environmentName = "{0}-{1:d2}" -f $PPCitizenNaming,$_
+        $environmentName = "{0}-{1:d3}" -f $PPCitizenNaming,$_
         try {
-            $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
-            Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
+            if ($PPCitizenAlm -eq 'Yes') {
+                foreach ($envTier in $envTiers) {
+                    $environmentName = "{0}-{1}" -f $environmentName,$envTier
+                    $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+                    Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
+                }
+            } else {
+                $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
+                Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
+            }
         } catch {
             throw "Failed to deploy citizen environment $environmentName"
         }
@@ -157,10 +168,18 @@ if ($PPCitizen -in "yes","half" -and $PPCitizenCount -ge 1) {
 if ($PPPro -in "yes","half" -and $PPProCount -ge 1) {
     $PPProDataverse = $PPPro -eq "yes"
     1..$PPProCount | ForEach-Object -Process {
-        $environmentName = "{0}-{1:d2}" -f $PPProNaming,$_
+        $environmentName = "{0}-{1:d3}" -f $PPProNaming,$_
         try {
-            $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
-            Write-Host "Created pro environment $environmentName in $PPProRegion"
+            if ($PPProAlm -eq 'Yes') {
+                foreach ($envTier in $envTiers) {
+                    $environmentName = "{0}-{1}" -f $environmentName,$envTier
+                    $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
+                    Write-Host "Created pro environment $environmentName in $PPProRegion"
+                }
+            } else {
+                $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
+                Write-Host "Created pro environment $environmentName in $PPProRegion"
+            }
         } catch {
             throw "Failed to deploy pro environment $environmentName"
         }
