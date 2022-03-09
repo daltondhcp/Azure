@@ -160,7 +160,7 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
     # Create environment
     foreach ($envTier in $envTiers) {
         try {
-            $adminEnvName = '{0}-{1}' -f $PPAdminEnvNaming, $envTier
+            $adminEnvName = '{0}-admin-{1}' -f $PPAdminEnvNaming, $envTier
             $null = New-PowerOpsEnvironment -Name $adminEnvName -Location $PPAdminRegion -Dataverse $true
             Write-Host "Created environment $adminEnvName in $PPAdminRegion"
         }
