@@ -165,7 +165,7 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
             Write-Host "Created environment $adminEnvName in $PPAdminRegion"
         }
         catch {
-            throw "Failed to create admin environment $adminEnvName"
+            throw "Failed to create admin environment $adminEnvName`r `n$_"
         }
     }
 }
