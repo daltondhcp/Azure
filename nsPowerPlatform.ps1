@@ -45,9 +45,14 @@ Install-Module -Name PowerOps -AllowPrerelease -Force
 
 #DLP Template references
 $dlpPolicies = @{
-    baseUri       = 'https://raw.githubusercontent.com/microsoft/industry/ns-riv1/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
-    defaultTenant = 'tenantDlpPolicy.json'
-    defaultEnv    = 'defaultEnvDlpPolicy.json'
+    baseUri    = 'https://raw.githubusercontent.com/microsoft/industry/ns-riv1/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
+    tenant     = @{
+        low    = 'lowTenantDlpPolicy.json'
+        medium = 'mediumTenantDlpPolicy.json'
+        high   = 'highTenantDlpPolicy.json'
+    }
+    defaultEnv = 'defaultEnvDlpPolicy.json'
+    adminEnv   = 'adminEnvDlpPolicy.json'
 }
 
 #Default environment tiers
@@ -131,7 +136,7 @@ if ($PPDefaultDLP -eq 'Yes') {
         })
     $template | ConvertTo-Json -Depth 100 -EnumsAsStrings | Set-Content -Path $templateFile -Force
     try {
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name EnvDefault
+        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name "Default Environment DLP"
         Write-Host "Created Default Environment DLP Policy"
     }
     catch {
@@ -141,13 +146,15 @@ if ($PPDefaultDLP -eq 'Yes') {
 #endregion default environment
 
 #region create default dlp policies
-if ($PPTenantDLP -eq 'Yes') {
+if ($PPTenantDLP -in 'low', 'medium', 'high') {
     # Get default recommended DLP policy from repo
-    $templateFile = 'defaultTenant.json'
-    (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $dlpPolicies['defaultTenant'])).Content | Set-Content -Path $templateFile -Force
+    $templateFile = $dlpPolicies.tenant.$PPTenantDLP
+    $templateRaw = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content
+    $templateRaw | Set-Content -Path $templateFile -Force
     try {
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name Default
-        Write-Host "Created Default Tenant DLP Policy"
+        $policyDisplayName = ($templateRaw | ConvertFrom-Json).DisplayName
+        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name $policyDisplayName
+        Write-Host "Created Default Tenant DLP Policy - $policyDisplayName"
     }
     catch {
         Write-Warning "Failed to create Default Tenant DLP Policy`r`n$_"
@@ -167,6 +174,25 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
         catch {
             throw "Failed to create admin environment $adminEnvName`r `n$_"
         }
+    }
+    # Assign DLP to created environments
+    $adminEnvironments = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayName -like "$PPAdminEnvNaming-admin*" } | ForEach-Object -Process {
+        [PSCustomObject]@{
+            id   = $_.id
+            name = $_.name
+            type = 'Microsoft.BusinessAppPlatform/scopes/environments'
+        }
+    }
+    $templateFile = $dlpPolicies['adminEnv']
+    $template = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content | ConvertFrom-Json -Depth 100
+    $template.environments = $adminEnvironments
+    $template | ConvertTo-Json -Depth 100 -EnumsAsStrings | Set-Content -Path $templateFile -Force
+    try {
+        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name "Admin Environment DLP"
+        Write-Host "Created Default Admin Environment DLP Policy"
+    }
+    catch {
+        Write-Warning "Created Default Admin Environment DLP Policy`r`n$_"
     }
 }
 #endregion create admin environments and import COE solution
@@ -220,3 +246,26 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1) {
     }
 }
 #endregion create landing zones for pro devs
+
+#region create industry landing zones
+if (-not[string]::IsNullOrEmpty($PPSelectIndustry)) {
+    #TODO Add template support for the different industries
+    $environmentName = $PPIndustryNaming
+    try {
+        if ($PPIndustryAlm -eq 'Yes') {
+            foreach ($envTier in $envTiers) {
+                $almEnvironmentName = "{0}-{1}" -f $environmentName, $envTier
+                $null = New-PowerOpsEnvironment -Name $almEnvironmentName -Location $PPIndustryRegion -Dataverse $true
+                Write-Host "Created industry environment $almEnvironmentName in $PPIndustryRegion"
+            }
+        }
+        else {
+            $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPIndustryRegion -Dataverse $true
+            Write-Host "Created industry environment $environmentName in $PPIndustryRegion"
+        }
+    }
+    catch {
+        throw "Failed to deploy industry environment $environmentName"
+    }
+}
+#endregion create industry landing zones
