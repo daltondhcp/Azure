@@ -52,18 +52,30 @@ function New-EnvironmentCreationObject {
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][int]$EnvCount,
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvNaming,
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvRegion,
-        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][switch]$EnvALM,
-        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][switch]$EnvDataverse
+        [Parameter(Mandatory = $false)][switch]$EnvALM,
+        [Parameter(Mandatory = $false, ParameterSetName = 'EnvCount')][switch]$EnvDataverse
     )
     if (-not [string]::IsNullOrEmpty($ARMInputString)) {
         foreach ($env in ($ARMInputString -split 'ppEnvName:')) {
             if ($env -match ".") {
                 $environment = $env.TrimEnd(',')
-                [PSCustomObject]@{
-                    envName      = ($environment -split (','))[0]
-                    envRegion    = ($environment -split (','))[1].Split(':')[1]
-                    envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
-                    envRbac      = ($environment -split (','))[3].Split(':')[1]
+                if ($EnvALM) {
+                    foreach ($envTier in $envTiers) {
+                        [PSCustomObject]@{
+                            envRegion    = ($environment -split (','))[1].Split(':')[1]
+                            envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
+                            envRbac      = ($environment -split (','))[3].Split(':')[1]
+                            envName      = '{0}-{1}' -f ($environment -split (','))[0], $envTier
+                        }
+                    }
+                }
+                else {
+                    [PSCustomObject]@{
+                        envName      = ($environment -split (','))[0]
+                        envRegion    = ($environment -split (','))[1].Split(':')[1]
+                        envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
+                        envRbac      = ($environment -split (','))[3].Split(':')[1]
+                    }
                 }
             }
         }
@@ -252,7 +264,7 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 #region create landing zones for citizen devs
 if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq 'custom') {
     if ($PPCitizenConfiguration -ne 'null') {
-        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPCitizenConfiguration -join ',')
+        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPCitizenConfiguration -join ',') -EnvALM:($PPCitizenAlm -eq 'Yes')
     }
     else {
         $envHt = @{
@@ -281,7 +293,7 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
 #region create landing zones for pro devs
 if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
     if ($PPProConfiguration -ne 'null') {
-        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPProConfiguration -join ',')
+        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPProConfiguration -join ',') -EnvALM:($PPProAlm -eq 'Yes')
     }
     else {
         $envHt = @{
