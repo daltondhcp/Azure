@@ -24,6 +24,7 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenAlm,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenConfiguration,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPPro,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProCount,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProNaming,
@@ -31,6 +32,7 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProAlm,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProConfiguration,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPSelectIndustry,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryNaming,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryRegion,
@@ -43,6 +45,55 @@ $DeploymentScriptOutputs = @{}
 #Install required modules
 Install-Module -Name PowerOps -AllowPrerelease -Force
 
+#region supporting functions
+function New-EnvironmentCreationObject {
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'ARMInputString')][string]$ARMInputString,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][int]$EnvCount,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvNaming,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvRegion,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][switch]$EnvALM,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][switch]$EnvDataverse
+    )
+    if (-not [string]::IsNullOrEmpty($ARMInputString)) {
+        foreach ($env in ($ARMInputString -split 'ppEnvName:')) {
+            if ($env -match ".") {
+                $environment = $env.TrimEnd(',')
+                [PSCustomObject]@{
+                    envName      = ($environment -split (','))[0]
+                    envRegion    = ($environment -split (','))[1].Split(':')[1]
+                    envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
+                    envRbac      = ($environment -split (','))[3].Split(':')[1]
+                }
+            }
+        }
+    }
+    else {
+        1..$EnvCount | ForEach-Object -Process {
+            $environmentName = "{0}-{1:d3}" -f $EnvNaming, $_
+            if ($true -eq $EnvALM) {
+                foreach ($envTier in $envTiers) {
+                    [PSCustomObject]@{
+                        envName      = "{0}-{1}" -f $environmentName, $envTier
+                        envRegion    = $EnvRegion
+                        envDataverse = $EnvDataverse
+                        envRbac      = ''
+                    }
+                }
+            }
+            else {
+                [PSCustomObject]@{
+                    envName      = $environmentName
+                    envRegion    = $EnvRegion
+                    envDataverse = $EnvDataverse
+                    envRbac      = ''
+                }
+            }
+        }
+    }
+}
+
+#endregion supporting functions
 #DLP Template references
 $dlpPolicies = @{
     baseUri    = 'https://raw.githubusercontent.com/microsoft/industry/ns-riv1/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
@@ -70,6 +121,7 @@ $tenantSettings.disableEnvironmentCreationByNonAdminUsers = $PPEnvCreationSettin
 $tenantSettings.disableCapacityAllocationByEnvironmentAdmins = $PPEnvCapacitySetting -eq 'Yes'
 
 # Update tenant settings
+#TODO - check if settings change changed and only update in that case
 try {
     $tenantRequest = @{
         Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
@@ -106,7 +158,7 @@ if ($PPTenantIsolationSetting) {
 
 # Rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
-    $defaultEnvironment = Invoke-PowerOpsRequest -Method Get -Path '/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments' | Where-Object { $_.Properties.environmentSku -eq "Default" }
+    $defaultEnvironment = Get-PowerOpsEnvironment | Where-Object { $_.Properties.environmentSku -eq "Default" }
     $oldDefaultName = $defaultEnvironment.properties.displayName
     if ($PPDefaultRenameText -ne $oldDefaultName) {
         $defaultEnvironment.properties.displayName = $PPDefaultRenameText
@@ -198,52 +250,58 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 #endregion create admin environments and import COE solution
 
 #region create landing zones for citizen devs
-if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1) {
-    $PPCitizenDataverse = $PPCitizen -eq "yes"
-    1..$PPCitizenCount | ForEach-Object -Process {
-        $environmentName = "{0}-{1:d3}" -f $PPCitizenNaming, $_
+if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizenConfiguration) {
+    if (-not [string]::IsNullOrEmpty($PPCitizenConfiguration)) {
+        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString $PPCitizenConfiguration
+    }
+    else {
+        $envHt = @{
+            EnvCount     = $PPCitizenCount
+            EnvNaming    = $PPCitizenNaming
+            EnvRegion    = $PPCitizenRegion
+            EnvALM       = $PPCitizenAlm -eq 'Yes'
+            EnvDataverse = $PPCitizen -eq 'Yes'
+        }
+        $environmentsToCreate = New-EnvironmentCreationObject @envHt
+    }
+    foreach ($environment in $environmentsToCreate) {
         try {
-            if ($PPCitizenAlm -eq 'Yes') {
-                foreach ($envTier in $envTiers) {
-                    $almEnvironmentName = "{0}-{1}" -f $environmentName, $envTier
-                    $null = New-PowerOpsEnvironment -Name $almEnvironmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
-                    Write-Host "Created citizen environment $almEnvironmentName in $PPCitizenRegion"
-                }
-            }
-            else {
-                $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPCitizenRegion -Dataverse $PPCitizenDataverse
-                Write-Host "Created citizen environment $environmentName in $PPCitizenRegion"
-            }
+            $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $env.envDataverse
+            Write-Host "Created citizen environment $($environment.envName) in $($environment.envRegion)"
         }
         catch {
-            throw "Failed to deploy citizen environment $environmentName"
+            throw "Failed to create citizen environment $($environment.envName) "
         }
     }
+    #TODO - ADD RBAC
 }
 #endregion create landing zones for citizen devs
 
 #region create landing zones for pro devs
-if ($PPPro -in "yes", "half" -and $PPProCount -ge 1) {
-    $PPProDataverse = $PPPro -eq "yes"
-    1..$PPProCount | ForEach-Object -Process {
-        $environmentName = "{0}-{1:d3}" -f $PPProNaming, $_
+if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPProConfiguration) {
+    if (-not [string]::IsNullOrEmpty($PPCitizenConfiguration)) {
+        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString $PPProConfiguration
+    }
+    else {
+        $envHt = @{
+            EnvCount     = $PPProCount
+            EnvNaming    = $PPProNaming
+            EnvRegion    = $PPProRegion
+            EnvALM       = $PPProAlm -eq 'Yes'
+            EnvDataverse = $PPPro -eq 'Yes'
+        }
+        $environmentsToCreate = New-EnvironmentCreationObject @envHt
+    }
+    foreach ($environment in $environmentsToCreate) {
         try {
-            if ($PPProAlm -eq 'Yes') {
-                foreach ($envTier in $envTiers) {
-                    $almEnvironmentName = "{0}-{1}" -f $environmentName, $envTier
-                    $null = New-PowerOpsEnvironment -Name $almEnvironmentName -Location $PPProRegion -Dataverse $PPProDataverse
-                    Write-Host "Created pro environment $almEnvironmentName in $PPProRegion"
-                }
-            }
-            else {
-                $null = New-PowerOpsEnvironment -Name $environmentName -Location $PPProRegion -Dataverse $PPProDataverse
-                Write-Host "Created pro environment $environmentName in $PPProRegion"
-            }
+            $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $env.envDataverse
+            Write-Host "Created pro environment $($environment.envName) in $($environment.envRegion)"
         }
         catch {
-            throw "Failed to deploy pro environment $environmentName"
+            throw "Failed to create pro environment $($environment.envName) "
         }
     }
+    #TODO - ADD RBAC
 }
 #endregion create landing zones for pro devs
 
