@@ -278,15 +278,17 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
     }
     foreach ($environment in $environmentsToCreate) {
         try {
-            Write-Host "Trying to create citizen environment $($environment.envName) in $($environment.envRegion)"
             $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $environment.envDataverse
             Write-Host "Created citizen environment $($environment.envName) in $($environment.envRegion)"
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $false) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
+                $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
+            }
         }
         catch {
             Write-Warning "Failed to create citizen environment $($environment.envName) "
         }
     }
-    #TODO - ADD RBAC
 }
 #endregion create landing zones for citizen devs
 
@@ -309,12 +311,15 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
         try {
             $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $environment.envDataverse
             Write-Host "Created pro environment $($environment.envName) in $($environment.envRegion)"
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $false) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) pro environment $($environment.envName)"
+                $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
+            }
         }
         catch {
             Write-Warning "Failed to create pro environment $($environment.envName) "
         }
     }
-    #TODO - ADD RBAC
 }
 #endregion create landing zones for pro devs
 
