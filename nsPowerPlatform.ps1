@@ -108,7 +108,7 @@ function New-EnvironmentCreationObject {
 #endregion supporting functions
 #DLP Template references
 $dlpPolicies = @{
-    baseUri    = 'https://raw.githubusercontent.com/microsoft/industry/ns-riv1/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
+    baseUri    = 'https://raw.githubusercontent.com/microsoft/industry/main/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
     tenant     = @{
         low    = 'lowTenantDlpPolicy.json'
         medium = 'mediumTenantDlpPolicy.json'
