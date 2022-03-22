@@ -284,6 +284,12 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
             }
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
+                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
+                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
+                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
+            }
         }
         catch {
             Write-Warning "Failed to create citizen environment $($environment.envName) "
@@ -314,6 +320,12 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
             if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $false) {
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) pro environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
+            }
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in pro environment $($environment.envName)"
+                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
+                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
+                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
             }
         }
         catch {
