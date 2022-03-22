@@ -161,8 +161,14 @@ if ($PPTenantIsolationSetting) {
             $tenantIsolationSettings.AllowedDirection = $PPTenantIsolationSetting
         }
     }
-    Set-PowerOpsTenantIsolation @tenantIsolationSettings
-    Write-Host "Updated tenant isolation settings"
+
+    try {
+        $null = Invoke-PowerOpsRequest @tenantRequest
+        Write-Host "Updated tenant isolation settings"
+    }
+    catch {
+        throw "Failed to update tenant isolation settings"
+    }
 }
 #endregion set tenant settings
 
@@ -212,9 +218,16 @@ if ($PPDefaultDLP -eq 'Yes') {
 #region create default dlp policies
 if ($PPTenantDLP -in 'low', 'medium', 'high') {
     # Get default recommended DLP policy from repo
-    $templateFile = $dlpPolicies.tenant.$PPTenantDLP
-    $templateRaw = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content
-    $templateRaw | Set-Content -Path $templateFile -Force
+    try {
+        Write-Host "Fetching base DLP policy "
+        $templateFile = $dlpPolicies.tenant.$PPTenantDLP
+        $templateRaw = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content
+        $templateRaw | Set-Content -Path $templateFile -Force
+    }
+    catch {
+        throw "Failed to get DLP policy $_ "
+    }
+
     try {
         $policyDisplayName = ($templateRaw | ConvertFrom-Json).DisplayName
         $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name $policyDisplayName
@@ -264,17 +277,27 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
 #region create landing zones for citizen devs
 if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq 'custom') {
     if ($PPCitizenConfiguration -ne 'null') {
-        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPCitizenConfiguration -join ',') -EnvALM:($PPCitizenAlm -eq 'Yes')
+        try {
+            $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPCitizenConfiguration -join ',') -EnvALM:($PPCitizenAlm -eq 'Yes')
+        }
+        catch {
+            throw "Failed to create environment object. Input data is malformed. '`r`n$_'"
+        }
     }
     else {
-        $envHt = @{
-            EnvCount     = $PPCitizenCount
-            EnvNaming    = $PPCitizenNaming
-            EnvRegion    = $PPCitizenRegion
-            EnvALM       = $PPCitizenAlm -eq 'Yes'
-            EnvDataverse = $PPCitizen -eq 'Yes'
+        try {
+            $envHt = @{
+                EnvCount     = $PPCitizenCount
+                EnvNaming    = $PPCitizenNaming
+                EnvRegion    = $PPCitizenRegion
+                EnvALM       = $PPCitizenAlm -eq 'Yes'
+                EnvDataverse = $PPCitizen -eq 'Yes'
+            }
+            $environmentsToCreate = New-EnvironmentCreationObject @envHt
         }
-        $environmentsToCreate = New-EnvironmentCreationObject @envHt
+        catch {
+            throw "Failed to create environment object. Input data is malformed. '`r`n$_'"
+        }
     }
     foreach ($environment in $environmentsToCreate) {
         try {
@@ -301,17 +324,28 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
 #region create landing zones for pro devs
 if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
     if ($PPProConfiguration -ne 'null') {
-        $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPProConfiguration -join ',') -EnvALM:($PPProAlm -eq 'Yes')
+        try {
+            $environmentsToCreate = New-EnvironmentCreationObject -ARMInputString ($PPProConfiguration -join ',') -EnvALM:($PPProAlm -eq 'Yes')
+        }
+        catch {
+            throw "Failed to create environment object. Input data is malformed. '`r`n$_'"
+        }
     }
     else {
-        $envHt = @{
-            EnvCount     = $PPProCount
-            EnvNaming    = $PPProNaming
-            EnvRegion    = $PPProRegion
-            EnvALM       = $PPProAlm -eq 'Yes'
-            EnvDataverse = $PPPro -eq 'Yes'
+        try {
+            $envHt = @{
+                EnvCount     = $PPProCount
+                EnvNaming    = $PPProNaming
+                EnvRegion    = $PPProRegion
+                EnvALM       = $PPProAlm -eq 'Yes'
+                EnvDataverse = $PPPro -eq 'Yes'
+            }
+            $environmentsToCreate = New-EnvironmentCreationObject @envHt
         }
-        $environmentsToCreate = New-EnvironmentCreationObject @envHt
+        catch {
+            throw "Failed to create environment object. Input data is malformed'`r`n$_'"
+        }
+
     }
     foreach ($environment in $environmentsToCreate) {
         try {
