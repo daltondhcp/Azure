@@ -1,3 +1,8 @@
+<#
+    PowerShell script to bootstrap/configure Power Platform from the North Star Reference Implementation. (aka.ms/ppnorthstar)
+    Note: The script is designed and optimized to run as a deploymentScript invoked from Azure Resource Manager.
+    Refer to https://github.com/microsoft/industry/blob/main/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/ppDeploymentScript.json for details around the input parameters.
+#>
 [CmdletBinding()]
 param (
     #Security, govarnance and compliance
@@ -14,7 +19,7 @@ param (
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
     [Parameter(Mandatory = $false)][string]$PPAdminBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminCoeSetting,
-    #Landing Zones[string][AllowEmptyString()]
+    #Landing Zones
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPDefaultRenameText,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPDefaultDLP,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizen,
@@ -252,7 +257,6 @@ if ($PPTenantIsolationSetting -in 'inbound', 'outbound', 'both') {
 #endregion set tenant settings
 
 #region default environment
-
 # Rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
     # Retry logic to handle green field deployments
