@@ -45,6 +45,9 @@ $DeploymentScriptOutputs = @{}
 #Install required modules
 Install-Module -Name PowerOps -AllowPrerelease -Force
 
+#Default ALM environment tiers
+$envTiers = 'dev', 'test', 'prod'
+
 #region supporting functions
 function New-EnvironmentCreationObject {
     param (
@@ -110,24 +113,63 @@ function New-DLPAssignmentFromEnv {
         [Parameter(Mandatory = $true)][string[]]$Environments,
         [Parameter(Mandatory = $true)][string]$EnvironmentDLP
     )
+    #DLP Template references
+    $dlpPolicies = @{
+        baseUri          = 'https://raw.githubusercontent.com/microsoft/industry/main/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
+        tenant           = @{
+            low    = 'lowTenantDlpPolicy.json'
+            medium = 'mediumTenantDlpPolicy.json'
+            high   = 'highTenantDlpPolicy.json'
+        }
+        defaultEnv       = 'defaultEnvDlpPolicy.json'
+        adminEnv         = 'adminEnvDlpPolicy.json'
+        citizenDlpPolicy = 'citizenDlpPolicy.json'
+        proDlpPolicy     = 'proDlpPolicy.json'
+    }
 
-    $environmentsToInclude = $Environments | ForEach-Object -Process {
-        $envDisplayName = $_
-        $envDetails = ''
-        $envDetails = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayName -eq $envDisplayName }
-        [PSCustomObject]@{
-            id   = $envDetails.id
-            name = $envDetails.name
-            type = 'Microsoft.BusinessAppPlatform/scopes/environments'
+    # Get base template from repo
+    $templateFile = if ($Environments -contains 'AllEnvironments') { $dlpPolicies['tenant'].$EnvironmentDLP } else { $dlpPolicies["$EnvironmentDLP"] }
+    if ([string]::IsNullOrEmpty($templateFile)) {
+        throw "Cannot find DLP template $EnvironmentDLP"
+    }
+    try {
+        $template = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content | ConvertFrom-Json -Depth 100
+        Write-Host "Using base DLP template $templatefile"
+    }
+    catch {
+        throw "Failed to get template $templatefile from $($dlpPolicies['baseUri'])"
+    }
+
+    # Handle environment inclusion
+    if (($Environments -contains 'AllEnvironments' -and $Environments.count -gt 1) -or ($Environments -ne 'AllEnvironments')) {
+        $environmentsToIncludeorExclude = $Environments | Where-Object { $_ -notlike 'AllEnvironments' } | ForEach-Object -Process {
+            $envDisplayName = $_
+            $envDetails = ''
+            $envDetails = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayName -eq $envDisplayName }
+            [PSCustomObject]@{
+                id   = $envDetails.id
+                name = $envDetails.name
+                type = 'Microsoft.BusinessAppPlatform/scopes/environments'
+            }
+        }
+        if ($environmentsToIncludeorExclude.count -eq 1) {
+            $template.environments | Add-Member -Type NoteProperty -Name id -Value $environmentsToIncludeorExclude.id -Force
+            $template.environments | Add-Member -Type NoteProperty -Name name -Value $environmentsToIncludeorExclude.name -Force
+        }
+        else {
+            $template.environments = $environmentsToIncludeorExclude
+        }
+        if ($Environments -contains 'AllEnvironments') {
+            $template.environmentType = 'ExceptEnvironments'
+        }
+        else {
+            $template.environmentType = 'OnlyEnvironments'
         }
     }
-    $templateFile = $dlpPolicies["$EnvironmentDLP"]
-    $template = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content | ConvertFrom-Json -Depth 100
-    $template.environments = $environmentsToInclude
-    $template.environmentType = 'OnlyEnvironments'
+    # Convert template back to json and
     $template | ConvertTo-Json -Depth 100 -EnumsAsStrings | Set-Content -Path $templateFile -Force
     try {
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name $template.displayName
+        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name $template.displayName -ErrorAction Stop
         Write-Host "Created Default $EnvironmentDLP DLP Policy"
     }
     catch {
@@ -135,25 +177,10 @@ function New-DLPAssignmentFromEnv {
     }
 }
 #endregion supporting functions
-#DLP Template references
-$dlpPolicies = @{
-    baseUri          = 'https://raw.githubusercontent.com/microsoft/industry/main/foundations/powerPlatform/referenceImplementation/auxiliary/powerPlatform/'
-    tenant           = @{
-        low    = 'lowTenantDlpPolicy.json'
-        medium = 'mediumTenantDlpPolicy.json'
-        high   = 'highTenantDlpPolicy.json'
-    }
-    defaultEnv       = 'defaultEnvDlpPolicy.json'
-    adminEnv         = 'adminEnvDlpPolicy.json'
-    citizenDlpPolicy = 'citizenDlpPolicy.json'
-    proDlpPolicy     = 'proDlpPolicy.json'
-}
-
-#Default environment tiers
-$envTiers = 'dev', 'test', 'prod'
 
 #region set tenant settings
 # Get existing tenant settings
+#TODO - add condition so script can be used without changing tenant settings
 $existingTenantSettings = Get-PowerOpsTenantSettings
 # Update tenant settings
 $tenantSettings = $existingTenantSettings
@@ -164,7 +191,7 @@ $tenantSettings.disableEnvironmentCreationByNonAdminUsers = $PPEnvCreationSettin
 $tenantSettings.disableCapacityAllocationByEnvironmentAdmins = $PPEnvCapacitySetting -eq 'Yes'
 
 # Update tenant settings
-#TODO - check if settings change changed and only update in that case
+
 try {
     $tenantRequest = @{
         Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
@@ -195,7 +222,7 @@ if ($PPTenantIsolationSetting -in 'inbound', 'outbound', 'both') {
 
     try {
         Set-PowerOpsTenantIsolation @tenantIsolationSettings
-        Write-Host "Updated tenant isolation settings"
+        Write-Host "Updated tenant isolation settings with $PPTenantIsolationSetting/$PPTenantIsolationDomains"
     }
     catch {
         throw "Failed to update tenant isolation settings"
@@ -207,6 +234,7 @@ if ($PPTenantIsolationSetting -in 'inbound', 'outbound', 'both') {
 
 # Rename default environment
 if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
+    # Retry logic to handle green field deployments
     $defaultEnvAttempts = 0
     do {
         $defaultEnvAttempts++
@@ -216,6 +244,7 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
             Start-Sleep -Seconds 15
         }
     } until ($defaultEnvironment -or $defaultEnvAttempts -eq 15)
+    # Get old default environment name
     $oldDefaultName = $defaultEnvironment.properties.displayName
     if ($PPDefaultRenameText -ne $oldDefaultName) {
         $defaultEnvironment.properties.displayName = $PPDefaultRenameText
@@ -236,47 +265,14 @@ if (-not [string]::IsNullOrEmpty($PPDefaultRenameText)) {
 # Create DLP policy for default environment
 if ($PPDefaultDLP -eq 'Yes') {
     # Get default recommended DLP policy from repo
-    $templateFile = 'defaultEnv.json'
-    $template = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $dlpPolicies['defaultEnv'])).Content | ConvertFrom-Json -Depth 100
-    $template.environments = @([PSCustomObject]@{
-            id   = $defaultEnvironment.id
-            name = $defaultEnvironment.name
-            type = 'Microsoft.BusinessAppPlatform/scopes/environments'
-        })
-    $template | ConvertTo-Json -Depth 100 -EnumsAsStrings | Set-Content -Path $templateFile -Force
     try {
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name "Default Environment DLP"
-        Write-Host "Created Default Environment DLP Policy"
+        New-DLPAssignmentFromEnv -Environments $defaultEnvironment.properties.displayName -EnvironmentDLP 'defaultEnv'
     }
     catch {
         Write-Warning "Failed to create Default Environment DLP Policy`r`n$_"
     }
 }
 #endregion default environment
-
-#region create default dlp policies
-if ($PPTenantDLP -in 'low', 'medium', 'high') {
-    # Get default recommended DLP policy from repo
-    try {
-        Write-Host "Fetching base DLP policy "
-        $templateFile = $dlpPolicies.tenant.$PPTenantDLP
-        $templateRaw = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content
-        $templateRaw | Set-Content -Path $templateFile -Force
-    }
-    catch {
-        throw "Failed to get DLP policy $_ "
-    }
-
-    try {
-        $policyDisplayName = ($templateRaw | ConvertFrom-Json).DisplayName
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name $policyDisplayName
-        Write-Host "Created Default Tenant DLP Policy - $policyDisplayName"
-    }
-    catch {
-        Write-Warning "Failed to create Default Tenant DLP Policy`r`n$_"
-    }
-}
-#endregion create default dlp policies
 
 #region create admin environments and import COE solution
 if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
@@ -291,20 +287,11 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
             throw "Failed to create admin environment $adminEnvName`r `n$_"
         }
     }
+
     # Assign DLP to created environments
-    $adminEnvironments = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayName -like "$PPAdminEnvNaming-admin*" } | ForEach-Object -Process {
-        [PSCustomObject]@{
-            id   = $_.id
-            name = $_.name
-            type = 'Microsoft.BusinessAppPlatform/scopes/environments'
-        }
-    }
-    $templateFile = $dlpPolicies['adminEnv']
-    $template = (Invoke-WebRequest -Uri ($dlpPolicies['BaseUri'] + $templateFile)).Content | ConvertFrom-Json -Depth 100
-    $template.environments = $adminEnvironments
-    $template | ConvertTo-Json -Depth 100 -EnumsAsStrings | Set-Content -Path $templateFile -Force
+    $adminEnvironments = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayName -like "$PPAdminEnvNaming-admin*" }
     try {
-        $null = New-PowerOpsDLPPolicy -TemplateFile $templateFile -Name "Admin Environment DLP"
+        New-DLPAssignmentFromEnv -Environments $adminEnvironments.properties.displayName -EnvironmentDLP 'adminEnv'
         Write-Host "Created Default Admin Environment DLP Policy"
     }
     catch {
@@ -312,6 +299,23 @@ if (-not [string]::IsNullOrEmpty($PPAdminEnvNaming)) {
     }
 }
 #endregion create admin environments and import COE solution
+
+#region create default tenant dlp policies
+if ($PPTenantDLP -in 'low', 'medium', 'high') {
+    try {
+        $environments = @()
+        $environments += 'AllEnvironments'
+        if ($adminEnvironments) {
+            $environments += $adminEnvironments.Properties.displayName
+        }
+        $null = New-DLPAssignmentFromEnv -Environments $environments -EnvironmentDLP $PPTenantDLP
+        Write-Host "Created Default Tenant DLP Policy - $PPTenantDLP"
+    }
+    catch {
+        Write-Warning "Failed to create Default Tenant DLP Policy`r`n$_"
+    }
+}
+#endregion create default tenant dlp policies
 
 #region create landing zones for citizen devs
 if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq 'custom') {
@@ -346,12 +350,12 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
             }
-            #   if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
-            #       Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
-            #       $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
-            #       $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
-            #       Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
-            #   }
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
+                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
+                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
+                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
+            }
         }
         catch {
             Write-Warning "Failed to create citizen environment $($environment.envName) "
@@ -397,12 +401,12 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) pro environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
             }
-            # if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
-            #     Write-Host "Assigning RBAC for principalId $($environment.envRbac) in pro environment $($environment.envName)"
-            #     $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
-            #     $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
-            #     Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
-            # }
+            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
+                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in pro environment $($environment.envName)"
+                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
+                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
+                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
+            }
         }
         catch {
             Write-Warning "Failed to create pro environment $($environment.envName) "
