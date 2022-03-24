@@ -1,4 +1,4 @@
-[CmdletBinding()]
+  [CmdletBinding()]
 param (
     #Security, govarnance and compliance
     [Parameter(Mandatory = $false)][string]$PPGuestMakerSetting = 'Yes',
@@ -24,6 +24,9 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenAlm,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenDescription,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenCurrency,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPCitizenLanguage,
     [Parameter(Mandatory = $false)]$PPCitizenConfiguration,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPPro,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProCount,
@@ -32,6 +35,9 @@ param (
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProDlp,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProBilling,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProAlm,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProDescription,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProCurrency,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPProLanguage,
     [Parameter(Mandatory = $false)]$PPProConfiguration,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPSelectIndustry,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPIndustryNaming,
@@ -55,6 +61,9 @@ function New-EnvironmentCreationObject {
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')][int]$EnvCount,
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvNaming,
         [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvRegion,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvLanguage,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvCurrency,
+        [Parameter(Mandatory = $true, ParameterSetName = 'EnvCount')]$EnvDescription,
         [Parameter(Mandatory = $false)][switch]$EnvALM,
         [Parameter(Mandatory = $false, ParameterSetName = 'EnvCount')][switch]$EnvDataverse
     )
@@ -65,19 +74,23 @@ function New-EnvironmentCreationObject {
                 if ($EnvALM) {
                     foreach ($envTier in $envTiers) {
                         [PSCustomObject]@{
-                            envRegion    = ($environment -split (','))[1].Split(':')[1]
-                            envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
-                            envRbac      = ($environment -split (','))[3].Split(':')[1]
-                            envName      = '{0}-{1}' -f ($environment -split (','))[0], $envTier
+                            envRegion      = ($environment -split (','))[2].Split(':')[1]
+                            envLanguage    = ($environment -split (','))[3].Split(':')[1]
+                            envCurrency    = ($environment -split (','))[4].Split(':')[1]
+                            envDescription = ($environment -split (','))[1].Split(':')[1]
+                            envRbac        = ($environment -split (','))[5].Split(':')[1]
+                            envName        = '{0}-{1}' -f ($environment -split (','))[0], $envTier
                         }
                     }
                 }
                 else {
                     [PSCustomObject]@{
-                        envName      = ($environment -split (','))[0]
-                        envRegion    = ($environment -split (','))[1].Split(':')[1]
-                        envDataverse = (($environment -split (','))[2].Split(':')[1]) -eq 'Yes'
-                        envRbac      = ($environment -split (','))[3].Split(':')[1]
+                        envName        = ($environment -split (','))[0]
+                        envRegion      = ($environment -split (','))[2].Split(':')[1]
+                        envLanguage    = ($environment -split (','))[3].Split(':')[1]
+                        envCurrency    = ($environment -split (','))[4].Split(':')[1]
+                        envDescription = ($environment -split (','))[1].Split(':')[1]
+                        envRbac        = ($environment -split (','))[5].Split(':')[1]
                     }
                 }
             }
@@ -89,25 +102,30 @@ function New-EnvironmentCreationObject {
             if ($true -eq $EnvALM) {
                 foreach ($envTier in $envTiers) {
                     [PSCustomObject]@{
-                        envName      = "{0}-{1}" -f $environmentName, $envTier
-                        envRegion    = $EnvRegion
-                        envDataverse = $EnvDataverse
-                        envRbac      = ''
+                        envName        = "{0}-{1}" -f $environmentName, $envTier
+                        envRegion      = $EnvRegion
+                        envDataverse   = $EnvDataverse
+                        envLanguage    = $envLanguage
+                        envCurrency    = $envCurrency
+                        envDescription = $envDescription
+                        envRbac        = ''
                     }
                 }
             }
             else {
                 [PSCustomObject]@{
-                    envName      = $environmentName
-                    envRegion    = $EnvRegion
-                    envDataverse = $EnvDataverse
-                    envRbac      = ''
+                    envName        = $environmentName
+                    envRegion      = $EnvRegion
+                    envDataverse   = $EnvDataverse
+                    envLanguage    = $envLanguage
+                    envCurrency    = $envCurrency
+                    envDescription = $envDescription
+                    envRbac        = ''
                 }
             }
         }
     }
 }
-
 function New-DLPAssignmentFromEnv {
     param (
         [Parameter(Mandatory = $true)][string[]]$Environments,
@@ -330,11 +348,14 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
     else {
         try {
             $envHt = @{
-                EnvCount     = $PPCitizenCount
-                EnvNaming    = $PPCitizenNaming
-                EnvRegion    = $PPCitizenRegion
-                EnvALM       = $PPCitizenAlm -eq 'Yes'
-                EnvDataverse = $PPCitizen -eq 'Yes'
+                EnvCount       = $PPCitizenCount
+                EnvNaming      = $PPCitizenNaming
+                EnvRegion      = $PPCitizenRegion
+                envLanguage    = $PPCitizenLanguage
+                envCurrency    = $PPCitizenCurrency
+                envDescription = $PPCitizenDescription
+                EnvALM         = $PPCitizenAlm -eq 'Yes'
+                EnvDataverse   = $PPCitizen -eq 'Yes'
             }
             $environmentsToCreate = New-EnvironmentCreationObject @envHt
         }
@@ -344,17 +365,20 @@ if ($PPCitizen -in "yes", "half" -and $PPCitizenCount -ge 1 -or $PPCitizen -eq '
     }
     foreach ($environment in $environmentsToCreate) {
         try {
-            $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $environment.envDataverse
+            $envCreationHt = @{
+                Name            = $environment.envName
+                Location        = $environment.envRegion
+                Dataverse       = $true
+                Description     = $environment.envDescription
+                LanguageName    = $environment.envLanguage
+                Currency        = $environment.envCurrency
+                SecurityGroupId = $environment.envRbac
+            }
+            $null = New-PowerOpsEnvironment @envCreationHt
             Write-Host "Created citizen environment $($environment.envName) in $($environment.envRegion)"
             if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $false) {
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
-            }
-            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
-                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in citizen environment $($environment.envName)"
-                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
-                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
-                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
             }
         }
         catch {
@@ -380,11 +404,14 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
     else {
         try {
             $envHt = @{
-                EnvCount     = $PPProCount
-                EnvNaming    = $PPProNaming
-                EnvRegion    = $PPProRegion
-                EnvALM       = $PPProAlm -eq 'Yes'
-                EnvDataverse = $PPPro -eq 'Yes'
+                EnvCount       = $PPProCount
+                EnvNaming      = $PPProNaming
+                EnvRegion      = $PPProRegion
+                EnvLanguage    = $PPProLanguage
+                EnvCurrency    = $PPProCurrency
+                EnvDescription = $PPProDescription
+                EnvALM         = $PPProAlm -eq 'Yes'
+                EnvDataverse   = $PPPro -eq 'Yes'
             }
             $environmentsToCreate = New-EnvironmentCreationObject @envHt
         }
@@ -395,17 +422,20 @@ if ($PPPro -in "yes", "half" -and $PPProCount -ge 1 -or $PPPro -eq 'custom') {
     }
     foreach ($environment in $environmentsToCreate) {
         try {
-            $null = New-PowerOpsEnvironment -Name $environment.envName -Location $environment.envRegion -Dataverse $environment.envDataverse
+            $envCreationHt = @{
+                Name            = $environment.envName
+                Location        = $environment.envRegion
+                Dataverse       = $true
+                Description     = $environment.envDescription
+                LanguageName    = $environment.envLanguage
+                Currency        = $environment.envCurrency
+                SecurityGroupId = $environment.envRbac
+            }
+            $null = New-PowerOpsEnvironment @envCreationHt
             Write-Host "Created pro environment $($environment.envName) in $($environment.envRegion)"
             if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $false) {
                 Write-Host "Assigning RBAC for principalId $($environment.envRbac) pro environment $($environment.envName)"
                 $null = New-PowerOpsRoleAssignment -PrincipalId $environment.envRbac -RoleDefinition EnvironmentAdmin -EnvironmentName $environment.envName
-            }
-            if (-not [string]::IsNullOrEmpty($environment.envRbac) -and $environment.envDataverse -eq $true) {
-                Write-Host "Assigning RBAC for principalId $($environment.envRbac) in pro environment $($environment.envName)"
-                $envToUpdate = Get-PowerOpsEnvironment | Where-Object { $_.properties.displayname -eq $environment.envName }
-                $envToUpdate.properties.linkedEnvironmentMetadata | Add-Member -NotePropertyName securityGroupId -NotePropertyValue $environment.envRbac
-                Invoke-PowerOpsRequest -Method Patch -Path $envToUpdate.id -RequestBody ($envToUpdate | ConvertTo-Json -Depth 100)
             }
         }
         catch {
