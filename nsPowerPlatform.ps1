@@ -1,14 +1,14 @@
-  [CmdletBinding()]
+[CmdletBinding()]
 param (
     #Security, govarnance and compliance
-    [Parameter(Mandatory = $false)][string]$PPGuestMakerSetting = 'Yes',
-    [Parameter(Mandatory = $false)][string]$PPAppSharingSetting = 'Yes',
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPGuestMakerSetting,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAppSharingSetting,
     #Admin environment and settings
-    [Parameter(Mandatory = $false)][string]$PPEnvCreationSetting = 'Yes',
-    [Parameter(Mandatory = $false)][string]$PPTrialEnvCreationSetting = 'Yes',
-    [Parameter(Mandatory = $false)][string]$PPEnvCapacitySetting = 'Yes',
-    [Parameter(Mandatory = $false)][string]$PPTenantIsolationSetting = 'none',
-    [Parameter(Mandatory = $false)][string]$PPTenantDLP = 'Yes',
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPEnvCreationSetting,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTrialEnvCreationSetting,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPEnvCapacitySetting,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTenantIsolationSetting,
+    [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTenantDLP,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPTenantIsolationDomains,
     [Parameter(Mandatory = $false)][string][AllowEmptyString()][AllowNull()]$PPAdminEnvNaming,
     [ValidateSet('unitedstates', 'europe', 'asia', 'australia', 'india', 'japan', 'canada', 'unitedkingdom', 'unitedstatesfirstrelease', 'southamerica', 'france', 'switzerland', 'germany', 'unitedarabemirates')][Parameter(Mandatory = $false)][string]$PPAdminRegion,
@@ -197,30 +197,33 @@ function New-DLPAssignmentFromEnv {
 #endregion supporting functions
 
 #region set tenant settings
-# Get existing tenant settings
-#TODO - add condition so script can be used without changing tenant settings
-$existingTenantSettings = Get-PowerOpsTenantSettings
-# Update tenant settings
-$tenantSettings = $existingTenantSettings
-$tenantSettings.disableTrialEnvironmentCreationByNonAdminUsers = $PPTrialEnvCreationSetting -eq 'Yes'
-$tenantSettings.powerPlatform.powerApps.enableGuestsToMake = $PPGuestMakerSetting -eq 'No'
-$tenantSettings.powerPlatform.powerApps.disableShareWithEveryone = $PPAppSharingSetting -eq 'Yes'
-$tenantSettings.disableEnvironmentCreationByNonAdminUsers = $PPEnvCreationSetting -eq 'Yes'
-$tenantSettings.disableCapacityAllocationByEnvironmentAdmins = $PPEnvCapacitySetting -eq 'Yes'
+# Only change tenant settings if "Setting" parameters have been provided
+if ($PSBoundParameters.Keys -match "Setting") {
+    # Get existing tenant settings
+    #TODO - add condition so script can be used without changing tenant settings
+    $existingTenantSettings = Get-PowerOpsTenantSettings
+    # Update tenant settings
+    $tenantSettings = $existingTenantSettings
+    $tenantSettings.disableTrialEnvironmentCreationByNonAdminUsers = $PPTrialEnvCreationSetting -eq 'Yes'
+    $tenantSettings.powerPlatform.powerApps.enableGuestsToMake = $PPGuestMakerSetting -eq 'No'
+    $tenantSettings.powerPlatform.powerApps.disableShareWithEveryone = $PPAppSharingSetting -eq 'Yes'
+    $tenantSettings.disableEnvironmentCreationByNonAdminUsers = $PPEnvCreationSetting -eq 'Yes'
+    $tenantSettings.disableCapacityAllocationByEnvironmentAdmins = $PPEnvCapacitySetting -eq 'Yes'
 
-# Update tenant settings
+    # Update tenant settings
 
-try {
-    $tenantRequest = @{
-        Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
-        Method      = 'Post'
-        RequestBody = ($tenantSettings | ConvertTo-Json -Depth 100)
+    try {
+        $tenantRequest = @{
+            Path        = '/providers/Microsoft.BusinessAppPlatform/scopes/admin/updateTenantSettings'
+            Method      = 'Post'
+            RequestBody = ($tenantSettings | ConvertTo-Json -Depth 100)
+        }
+        $null = Invoke-PowerOpsRequest @tenantRequest
+        Write-Host "Updated tenant settings"
     }
-    $null = Invoke-PowerOpsRequest @tenantRequest
-    Write-Host "Updated tenant settings"
-}
-catch {
-    throw "Failed to set tenant settings"
+    catch {
+        throw "Failed to set tenant settings"
+    }
 }
 
 # Tenant Isolation settings
